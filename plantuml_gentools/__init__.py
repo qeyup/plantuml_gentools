@@ -1,8 +1,8 @@
 import sys
 import plantuml
+import traceback
 
 # Pending points
-# - include code in the output
 # - Alings options
 
 
@@ -121,6 +121,7 @@ class Object():
             return code
 
         code=""
+
         code +="@startuml\n"
 
         if self.name != "":
@@ -141,10 +142,29 @@ class Object():
 
         code += "@enduml\n"
 
+
+        code += "\n\n"
+        code += "'====="
+        code += "' SCRIPT CODE"
+        code += "'====="
+        code += "\n\n"
+        try:
+            stack = traceback.extract_stack()
+            script_file = stack[0][0]
+
+            with open(script_file, "r") as file:
+                for line in file:
+                    code += "'> %s" % line
+
+        except:
+            pass
+
+
         return code
 
     def GenContainerURL(self, format="png", print_URL=False, print_code=False):
         code = self.GenContainerCode()
+
         url = "http://www.plantuml.com/plantuml/" + format + "/" + plantuml.deflate_and_encode(code)
         if self.name != "":
             url = ("![%s](%s)") % (self.name, url)
