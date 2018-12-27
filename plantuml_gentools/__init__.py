@@ -144,10 +144,10 @@ class Object():
 
 
         code += "\n\n"
-        code += "'====="
-        code += "' SCRIPT CODE"
-        code += "'====="
-        code += "\n\n"
+        code += "'>=============\n"
+        code += "'> SCRIPT CODE \n"
+        code += "'>=============\n"
+        code += "\n"
         try:
             stack = traceback.extract_stack()
             script_file = stack[0][0]
