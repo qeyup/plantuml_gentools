@@ -1,12 +1,15 @@
 import sys
 import plantuml
-from enum import Enum
+
+# Pending points
+# - include code in the output
+# - Alings options
 
 
 id = 0
-class Object_new():
+class Object():
 
-    def __init__(self, type, name="", color=""):
+    def __init__(self, type, name="", color="", top_margin=1, bottom_margin=1, left_margin=10, right_margin=10, include_in=None):
         global id
         id += 1
 
@@ -14,22 +17,68 @@ class Object_new():
         self.type = type
         self.name = name
         self.color = color
-        self.invert_draw_dir = False
+        self.invert_draw_dir = True
+        self.top_margin = top_margin 
+        self.bottom_margin = bottom_margin 
+        self.left_margin = left_margin 
+        self.right_margin = right_margin
 
         self.include_list = []
+        self.included = None
+
+        self.connection_list = []
+
+        if include_in is not None:
+            include_in.Include(self)
 
     def Include(self, include_objs):
         if type(include_objs) == list:
             for obj in include_objs:
+                if obj.included is not None:
+                    obj.included.include_list.remove(obj)
                 self.include_list.append(obj)
-        elif type(include_objs) == Object_new:
+                obj.included = self
+        else:
+            if include_objs.included is not None:
+                include_objs.included.include_list.remove(include_objs)
             self.include_list.append(include_objs)
+            include_objs.included = self
+
+    def Connect(self, connect_objs, color="", style="-", dir="", l_conn="<", r_conn=">", invert=False):
+        connector="%s-%s-%s" % (l_conn, dir, r_conn)
+        connector=connector.replace("-", style)
+        
+        if type(connect_objs) == list:
+            for obj in connect_objs:
+                self.connection_list.append([obj, connector, color, invert])
+        else:
+            self.connection_list.append([connect_objs, connector, color, invert])
 
     def GenObjectCode(self):
         code_line = ""
 
+        top_margin=""
+        for i in range(0,self.top_margin):
+            top_margin+="\\n"
+        bottom_margin=""
+        for i in range(0,self.bottom_margin):
+            bottom_margin+="\\n"
+        left_margin=""
+        for i in range(0,self.left_margin):
+            left_margin+=" "
+        right_margin=""
+        for i in range(0,self.right_margin):
+            right_margin+=" "
+
+        name = self.name
+
+        name= name.replace("\n", "\\n")
+        name = name.replace("\\n", ("%s\\n%s") % (right_margin, left_margin))
+        name = "%s%s%s%s%s" % (top_margin, left_margin, name, right_margin, bottom_margin)
+
+
         if self.name != "":
-            code_line = ("%s \"%s\" as ID_%s") % (self.type, self.name, self.id)
+            code_line = ("%s \"%s\" as ID_%s") % (self.type, name, self.id)
         else:
             code_line = ("%s ID_%s") % (self.type, self.id)
 
@@ -59,6 +108,18 @@ class Object_new():
                 code+="\n"
             return code
 
+        def GenConnetionCode(main_obj, objects_list = None):
+            code = ""
+            for obj, connector, color, invert in main_obj.connection_list:
+                if objects_list is not None:
+                    if not obj in objects_list:
+                        continue
+                if not invert:
+                    code += (("ID_%s %s ID_%s %s\n") % (main_obj.id, connector, obj.id, color))
+                else:
+                    code += (("ID_%s %s ID_%s %s\n") % (obj.id, connector, main_obj.id, color))
+            return code
+
         code=""
         code +="@startuml\n"
 
@@ -73,15 +134,29 @@ class Object_new():
         code+=CodeIterate(self.include_list, used_object)
         code+="\n"
 
+        for obj in used_object:
+            code += GenConnetionCode(obj, used_object)
+
         code += "\n"
 
         code += "@enduml\n"
 
         return code
 
-    def GenContainerURL(self):
-        url = "http://www.plantuml.com/plantuml/svg/" + plantuml.deflate_and_encode(self.GenContainerCode())
-        return "![image](%s)" % url
+    def GenContainerURL(self, format="png", print_URL=False, print_code=False):
+        code = self.GenContainerCode()
+        url = "http://www.plantuml.com/plantuml/" + format + "/" + plantuml.deflate_and_encode(code)
+        if self.name != "":
+            url = ("![%s](%s)") % (self.name, url)
+        else:
+            url = ("![image](%s)") % (url)
+
+        if print_code:
+            print(code)
+        if print_URL:
+            print(url)
+
+        return url
 
     def SaveContainerPlantUML(self, file_name="out"):
         f = open(("%s.puml" % (file_name)), 'w+')
@@ -89,40 +164,6 @@ class Object_new():
         f.close()
 
 
-
-
-Id=0
-Objects=[]
-class Object():
-    def __init__(self, Type, name="", contentIn = None, Color=""):
-        global Id
-        global Objects
-
-        Id+=1
-        self.name = name.replace("\n","\\n")
-        self.ID = ("ID_%s" % Id)
-        self.type = Type
-        self.contanedList = []
-        self.Color = Color
-        
-        if self.name == "":
-            self.Code = ("%s %s") % (self.type, self.ID)
-        else:
-            self.Code = ("%s \"%s\" as %s %s") % (self.type, self.name, self.ID, self.Color)
-
-        if contentIn is None:
-            Objects.append(self)
-        else:
-            contentIn.contanedList.append(self)
-
-Connections=[]
-def connect(A, B, Color="", Style="-", Dir="", LConn="<", RConn=">"):
-    global Connections
-
-    Conector="%s-%s-%s" % (LConn, Dir, RConn)
-    Conector=Conector.replace("-", Style)
-    if A is not None and B is not None:
-        Connections.append(("%s %s %s %s\n") %(A.ID, Conector, B.ID, Color))
 
 aligns=[]
 def AlignObjects(ObjectList, Dir="", Space=0):
@@ -134,58 +175,3 @@ def AlignObjects(ObjectList, Dir="", Space=0):
         obj1 = ObjectList[i]
         obj2 = ObjectList[i+1]
         aligns.append(("%s -[hidden]%s%s %s\n") % (obj1.ID, Dir, Add, obj2.ID))
-
-Title=""
-def SetTittle(NewTitle):
-    global Title
-    global FileName
-    Title = ("\n\ntitle %s\n\n") % (NewTitle)
-
-def Exit(invert=False, Output=""):
-    global Objects
-    global FileName
-
-    def GenObjCode(ObjecList, curret_indent=""):
-        ObjectCode=""
-        for obj in ObjecList:
-            ObjectCode +="%s%s" % (curret_indent, obj.Code)
-            if len(obj.contanedList) > 0:
-                ObjectCode+="{\n"
-                ObjectCode+=GenObjCode(obj.contanedList, (("%s\t") % (curret_indent)))
-                ObjectCode+="%s}" % curret_indent
-            ObjectCode+="\n"
-        return ObjectCode
-
-    puml=""
-    puml +="@startuml\n"
-
-    puml +="%s" % Title
-    
-    if invert:
-        puml += "left to right direction\n"
-
-
-    puml += "%s" % GenObjCode(Objects)
-
-    puml += "\n"
-
-    for align in aligns:
-        puml += "%s" % align
-
-    puml += "\n"
-
-    for con in Connections:
-        puml += "%s" % con
-
-
-    puml += "@enduml\n"
-
-    if Output=="":
-        #print("%s" % puml)
-
-        url = "http://www.plantuml.com/plantuml/svg/" + plantuml.deflate_and_encode(puml)
-        print("![image](%s)" % url)
-    else:
-        f = open(("%s.puml" % (Output)), 'w+')
-        f.write(puml)
-        f.close()
