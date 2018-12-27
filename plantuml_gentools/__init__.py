@@ -14,7 +14,6 @@ class Object_new():
         self.type = type
         self.name = name
         self.color = color
-        self.title = ""
         self.invert_draw_dir = False
 
         self.include_list = []
@@ -43,7 +42,7 @@ class Object_new():
         return code_line
 
     def GenContainerCode(self):
-        def CodeIterate(object_list, used_object, indent="\t"):
+        def CodeIterate(object_list, used_object, indent=""):
             code = ""
             for obj in object_list:
                 if obj in used_object:
@@ -63,18 +62,15 @@ class Object_new():
         code=""
         code +="@startuml\n"
 
-        code +="%s" % self.title
-    
+        if self.name != "":
+            code +="title %s\n" % self.name
+
         if self.invert_draw_dir:
             code += "left to right direction\n"
 
         used_object = []
         used_object.append(self)
-        code +="%s" % (self.GenObjectCode())
-        if len(self.include_list) > 0:
-            code+="{\n"
-            code+=CodeIterate(self.include_list, used_object)
-            code+="}"
+        code+=CodeIterate(self.include_list, used_object)
         code+="\n"
 
         code += "\n"
