@@ -1,8 +1,99 @@
 import sys
-
 import plantuml
-
 from enum import Enum
+
+
+id = 0
+class Object_new():
+
+    def __init__(self, type, name="", color=""):
+        global id
+        id += 1
+
+        self.id = id
+        self.type = type
+        self.name = name
+        self.color = color
+        self.title = ""
+        self.invert_draw_dir = False
+
+        self.include_list = []
+
+    def Include(self, include_objs):
+        if type(include_objs) == list:
+            for obj in include_objs:
+                self.include_list.append(obj)
+        elif type(include_objs) == Object_new:
+            self.include_list.append(include_objs)
+
+    def GenObjectCode(self):
+        code_line = ""
+
+        if self.name != "":
+            code_line = ("%s \"%s\" as ID_%s") % (self.type, self.name, self.id)
+        else:
+            code_line = ("%s ID_%s") % (self.type, self.id)
+
+        if self.color != "":
+            if self.color.startswith("#"):
+                code_line += (" %s") %(self.color)
+            else:
+                code_line += (" #%s") %(self.color)
+
+        return code_line
+
+    def GenContainerCode(self):
+        def CodeIterate(object_list, used_object, indent="\t"):
+            code = ""
+            for obj in object_list:
+                if obj in used_object:
+                    print(("Object %s re-used") % (obj.id))
+                    continue
+
+                used_object.append(obj)
+
+                code +="%s%s" % (indent, obj.GenObjectCode())
+                if len(obj.include_list) > 0:
+                    code+="{\n"
+                    code+=CodeIterate(obj.include_list, used_object, (("%s\t") % (indent)))
+                    code+="%s}" % indent
+                code+="\n"
+            return code
+
+        code=""
+        code +="@startuml\n"
+
+        code +="%s" % self.title
+    
+        if self.invert_draw_dir:
+            code += "left to right direction\n"
+
+        used_object = []
+        used_object.append(self)
+        code +="%s" % (self.GenObjectCode())
+        if len(self.include_list) > 0:
+            code+="{\n"
+            code+=CodeIterate(self.include_list, used_object)
+            code+="}"
+        code+="\n"
+
+        code += "\n"
+
+        code += "@enduml\n"
+
+        return code
+
+    def GenContainerURL(self):
+        url = "http://www.plantuml.com/plantuml/svg/" + plantuml.deflate_and_encode(self.GenContainerCode())
+        return "![image](%s)" % url
+
+    def SaveContainerPlantUML(self, file_name="out"):
+        f = open(("%s.puml" % (file_name)), 'w+')
+        f.write(self.GenContainerCode())
+        f.close()
+
+
+
 
 Id=0
 Objects=[]
