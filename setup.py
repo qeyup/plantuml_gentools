@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="plantuml_gentools",
-    version="0.0.1",
+    version="0.1.1",
     author="Javier Moreno",
     author_email="jgmore@gmail.com",
     description="PlantUML gen Tools.",
