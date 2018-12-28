@@ -13,15 +13,16 @@ class Object():
         global id
         id += 1
 
-        self.id = id
+        self.id = "ID_%i" % id
         self.type = type
         self.name = name
         self.color = color
-        self.invert_draw_dir = True
+        self.invert_draw_dir = False
         self.top_margin = top_margin 
         self.bottom_margin = bottom_margin 
         self.left_margin = left_margin 
         self.right_margin = right_margin
+        self.align = None
 
         self.include_list = []
         self.included = None
@@ -54,6 +55,15 @@ class Object():
         else:
             self.connection_list.append([connect_objs, connector, color, invert])
 
+    def AlingContentAsRows(self, max_per_row = 0, exclude_objs = None, h_sep = 0, v_sep = 0, force = 5):
+        self.align = ["rows", exclude_objs, max_per_row, h_sep, v_sep, force]
+
+    def AlingContentAsColumns(self, max_per_column = 0, exclude_objs = None):
+        self.align = ["columns", exclude_objs, max_per_column]
+
+    def AlingContentAsCeter(self, middle_objs = None, exclude_objs = None):
+        self.align = ["center", exclude_objs, middle_objs]
+
     def GenObjectCode(self):
         code_line = ""
 
@@ -78,9 +88,9 @@ class Object():
 
 
         if self.name != "":
-            code_line = ("%s \"%s\" as ID_%s") % (self.type, name, self.id)
+            code_line = ("%s \"%s\" as %s") % (self.type, name, self.id)
         else:
-            code_line = ("%s ID_%s") % (self.type, self.id)
+            code_line = ("%s %s") % (self.type, self.id)
 
         if self.color != "":
             if self.color.startswith("#"):
@@ -111,13 +121,145 @@ class Object():
         def GenConnetionCode(main_obj, objects_list = None):
             code = ""
             for obj, connector, color, invert in main_obj.connection_list:
+                if color != "":
+                    if not color.startswith("#"):
+                        color = ("#%s") %(color)
+
                 if objects_list is not None:
                     if not obj in objects_list:
                         continue
                 if not invert:
-                    code += (("ID_%s %s ID_%s %s\n") % (main_obj.id, connector, obj.id, color))
+                    code += (("%s %s %s %s\n") % (main_obj.id, connector, obj.id, color))
                 else:
-                    code += (("ID_%s %s ID_%s %s\n") % (obj.id, connector, main_obj.id, color))
+                    code += (("%s %s %s %s\n") % (obj.id, connector, main_obj.id, color))
+            return code
+
+        def GenAlingCode(main_obj):
+            code = ""
+            if main_obj.align is None:
+                return code
+            align_mode = main_obj.align[0]
+            exclude_objs = main_obj.align[1]
+
+            obj_list=[]
+            for obj in main_obj.include_list:
+                if exclude_objs is not None:
+                    if obj in exclude_objs:
+                        continue
+                obj_list.append(obj)
+
+            if len(obj_list) < 2:
+                return code
+
+
+            if align_mode == "center":
+                max_per_row = self.align[2]
+
+                h_row = []
+                l_row = []
+                for i in range(len(self.include_list)):
+                    obj = self.include_list[i]
+                    if i < (len(self.include_list)/2):
+                        h_row.append(obj)
+                    else:
+                        l_row.append(obj)
+
+                for i in range(len(h_row)-1):
+                    obj1 = h_row[i]
+                    obj2 = h_row[i+1]
+                    code += "%s -[hidden]- %s\n" % (obj1.id, obj2.id)
+
+
+            if align_mode == "rows":
+                max_per_row = main_obj.align[2]
+                h_sep = main_obj.align[3]
+                v_sep = main_obj.align[4]
+                force = main_obj.align[5]
+
+                rows = []
+                row = []
+                j = 0
+                for i in range(0,len(obj_list)):
+                    if exclude_objs is not None:
+                        if obj_list[i] in exclude_objs:
+                            continue
+
+                    row.append(obj_list[i])
+
+                    j += 1
+                    if j >= max_per_row:
+                        rows.append(row)
+                        row = []
+                        j = 0
+                if j > 0:
+                    rows.append(row)
+                    row = []
+                    j = 0
+
+                columns = []
+                column = []
+                if len(rows) > 1:
+                    for obj in rows[0]:
+                        columns.append([])
+
+                for row in rows:
+                    for j in range(0,len(row)):
+                        columns[j].append(row[j])
+
+                sep="-"
+                for i in range(0,h_sep):
+                    sep+="-"
+
+                for row in rows:
+                    for i in range(0,len(row)-1):
+                        obj1 = row[i]
+                        obj2 = row[i+1]
+                        
+                        obj1_conected=[]
+                        for item in obj1.connection_list:
+                            obj1_conected.append(item[0])
+                        obj2_conected=[]
+                        for item in obj2.connection_list:
+                            obj2_conected.append(item[0])
+
+                        if obj1 in obj2_conected:
+                            continue
+                        if obj2 in obj1_conected:
+                            continue
+
+                        for x in range (0,force):
+                            code += "%s -[hidden]down%s %s\n" % (obj1.id, sep, obj2.id)
+                            code += "%s -[hidden]up%s %s\n" % (obj2.id, sep, obj1.id)
+                            #code += "%s --> %s\n" % (obj1.id, obj2.id)
+                            #code += "%s <|-[hidden]down%s %s\n" % (obj2.id, sep, obj1.id)
+
+                sep="-"
+                for i in range(0,v_sep):
+                    sep+="-"
+
+                for column in columns:
+                    for i in range(0,len(column)-1):
+                        obj1 = column[i]
+                        obj2 = column[i+1]
+
+                        obj1_conected=[]
+                        for item in obj1.connection_list:
+                            obj1_conected.append(item[0])
+                        obj2_conected=[]
+                        for item in obj2.connection_list:
+                            obj2_conected.append(item[0])
+
+                        if obj1 in obj2_conected:
+                            continue
+                        if obj2 in obj1_conected:
+                            continue
+
+                        for x in range (0,force):
+                            code += "%s -[hidden]right%s %s\n" % (obj1.id, sep, obj2.id)
+                            code += "%s -[hidden]left%s %s\n" % (obj2.id, sep, obj1.id)
+                            #code += "%s -> %s\n" % (obj1.id, obj2.id)
+                            #code += "%s -[hidden]> %s\n" % (obj2.id, obj1.id)
+
             return code
 
         code=""
@@ -135,10 +277,25 @@ class Object():
         code+=CodeIterate(self.include_list, used_object)
         code+="\n"
 
+
+
+        code += "\n\n"
+        code += "'#================\n"
+        code += "'# CONNECTION CODE \n"
+        code += "'#================\n"
+        code += "\n"
         for obj in used_object:
             code += GenConnetionCode(obj, used_object)
-
         code += "\n"
+
+        #code += "\n\n"
+        #code += "'#===========\n"
+        #code += "'# ALIGN CODE \n"
+        #code += "'#===========\n"
+        #code += "\n"
+        #for obj in used_object:
+            #code += GenAlingCode(obj)
+        #code+="\n"
 
         code += "@enduml\n"
 
@@ -182,7 +339,6 @@ class Object():
         f = open(("%s.puml" % (file_name)), 'w+')
         f.write(self.GenContainerCode())
         f.close()
-
 
 
 aligns=[]
