@@ -13,7 +13,7 @@ class Object():
         global id
         id += 1
 
-        self.id = id
+        self.id = "ID_%i" % id
         self.type = type
         self.name = name
         self.color = color
@@ -44,9 +44,34 @@ class Object():
             self.include_list.append(include_objs)
             include_objs.included = self
 
-    def Connect(self, connect_objs, color="", style="-", dir="", l_conn="<", r_conn=">", invert=False):
-        connector="%s-%s-%s" % (l_conn, dir, r_conn)
-        connector=connector.replace("-", style)
+    def Connect(self, connect_objs, color="", style="-", dir=1, lengh=1, l_conn="<", r_conn=">", invert=False, hidden = False):
+
+        while dir > 3:
+            dir -= 4
+
+        if dir <= 0:
+            dir_code="right"
+        elif dir == 1:
+            dir_code="down"
+        elif dir == 2:
+            #dir_code="left"
+            dir_code="right"
+            invert = not invert
+        elif dir == 3:
+            #dir_code="up"
+            dir_code="down"
+            invert = not invert
+
+        sep="-"
+        for i in range(0,lengh):
+            sep+="-"
+
+
+        if hidden:
+            connector = "-[hidden]%s%s" % (dir_code, sep)
+        else:
+            connector="%s-%s%s%s" % (l_conn, dir_code, sep, r_conn)
+            connector=connector.replace("-", style)
         
         if type(connect_objs) == list:
             for obj in connect_objs:
@@ -78,9 +103,9 @@ class Object():
 
 
         if self.name != "":
-            code_line = ("%s \"%s\" as ID_%s") % (self.type, name, self.id)
+            code_line = ("%s \"%s\" as %s") % (self.type, name, self.id)
         else:
-            code_line = ("%s ID_%s") % (self.type, self.id)
+            code_line = ("%s %s") % (self.type, self.id)
 
         if self.color != "":
             if self.color.startswith("#"):
@@ -111,13 +136,16 @@ class Object():
         def GenConnetionCode(main_obj, objects_list = None):
             code = ""
             for obj, connector, color, invert in main_obj.connection_list:
+                if color != "":
+                    if not color.startswith("#"):
+                        color = ("#%s") %(color)
                 if objects_list is not None:
                     if not obj in objects_list:
                         continue
                 if not invert:
-                    code += (("ID_%s %s ID_%s %s\n") % (main_obj.id, connector, obj.id, color))
+                    code += (("%s %s %s %s\n") % (main_obj.id, connector, obj.id, color))
                 else:
-                    code += (("ID_%s %s ID_%s %s\n") % (obj.id, connector, main_obj.id, color))
+                    code += (("%s %s %s %s\n") % (obj.id, connector, main_obj.id, color))
             return code
 
         code=""
@@ -182,16 +210,3 @@ class Object():
         f = open(("%s.puml" % (file_name)), 'w+')
         f.write(self.GenContainerCode())
         f.close()
-
-
-
-aligns=[]
-def AlignObjects(ObjectList, Dir="", Space=0):
-    global aligns
-    Add="-"
-    for i in range(0,Space):
-        Add+="-"
-    for i in range(len(ObjectList) - 1):
-        obj1 = ObjectList[i]
-        obj2 = ObjectList[i+1]
-        aligns.append(("%s -[hidden]%s%s %s\n") % (obj1.ID, Dir, Add, obj2.ID))
