@@ -101,6 +101,35 @@ class Object():
         return code_line
 
     def GenContainerCode(self):
+
+        def GetAlignList(main_obj):
+            obj_groups=[main_obj.include_list]
+            
+            if main_obj.align is None:
+                return obj_groups
+
+            align_mode = main_obj.align[0]
+
+            if align_mode == "rows":
+                max_per_row = main_obj.align[2]
+                obj_groups = []
+                row = []
+                j = 0
+                for i in range(0,len(main_obj.include_list)):
+                    row.append(main_obj.include_list[i])
+
+                    j += 1
+                    if j >= max_per_row:
+                        obj_groups.append(row)
+                        row = []
+                        j = 0
+                if j > 0:
+                    obj_groups.append(row)
+                    row = []
+                    j = 0
+
+            return obj_groups
+
         def CodeIterate(object_list, used_object, indent=""):
             code = ""
             for obj in object_list:
@@ -112,8 +141,18 @@ class Object():
 
                 code +="%s%s" % (indent, obj.GenObjectCode())
                 if len(obj.include_list) > 0:
+                    obj_groups = GetAlignList(obj)
+
                     code+="{\n"
-                    code+=CodeIterate(obj.include_list, used_object, (("%s\t") % (indent)))
+                    xx = 0
+                    for group in obj_groups:
+                        xx += 1
+                        code+="together AA_%s{\n" % xx
+                        code+=CodeIterate(group, used_object, (("%s\t") % (indent)))
+                        code+="}\n"
+                        
+                        if xx > 0:
+                            code+="AA_%s -[hidden]- AA_%s\n" % (xx-1,xx)
                     code+="%s}" % indent
                 code+="\n"
             return code
@@ -274,9 +313,16 @@ class Object():
 
         used_object = []
         used_object.append(self)
-        code+=CodeIterate(self.include_list, used_object)
-        code+="\n"
 
+        obj_groups = GetAlignList(self)
+        xx = 0
+        for group in obj_groups:
+            xx += 1
+            code+="together AA_%s{\n" % xx
+            code+=CodeIterate(group, used_object)
+            code+="}\n"
+            if xx > 1:
+                code+="AA_%s -[hidden]- AA_%s\n" % (xx-1,xx)
 
 
         code += "\n\n"
