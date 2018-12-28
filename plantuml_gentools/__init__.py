@@ -3,13 +3,13 @@ import plantuml
 import traceback
 
 # Pending points
-# - Alings options
+# - Alings grid options
 
 
 id = 0
 class Object():
 
-    def __init__(self, type, name="", color="", top_margin=1, bottom_margin=1, left_margin=10, right_margin=10, include_in=None):
+    def __init__(self, type="together", name="", color="", top_margin=1, bottom_margin=1, left_margin=10, right_margin=10, include_in=None):
         global id
         id += 1
 
@@ -44,7 +44,7 @@ class Object():
             self.include_list.append(include_objs)
             include_objs.included = self
 
-    def Connect(self, connect_objs, color="", style="-", dir=1, lengh=1, l_conn="<", r_conn=">", invert=False, hidden = False):
+    def Connect(self, connect_objs, color="", style="-", dir=1, lengh=0, l_conn="<", r_conn=">", invert=False, hidden = False):
 
         while dir > 3:
             dir -= 4
@@ -54,13 +54,13 @@ class Object():
         elif dir == 1:
             dir_code="down"
         elif dir == 2:
-            #dir_code="left"
-            dir_code="right"
-            invert = not invert
+            dir_code="left"
+            #dir_code="right"
+            #invert = not invert
         elif dir == 3:
-            #dir_code="up"
-            dir_code="down"
-            invert = not invert
+            dir_code="up"
+            #dir_code="down"
+            #invert = not invert
 
         sep="-"
         for i in range(0,lengh):
@@ -116,21 +116,21 @@ class Object():
         return code_line
 
     def GenContainerCode(self):
-        def CodeIterate(object_list, used_object, indent=""):
+        def CodeIterate(obj, used_object, indent=""):
             code = ""
-            for obj in object_list:
-                if obj in used_object:
-                    print(("Object %s re-used") % (obj.id))
-                    continue
+            if obj in used_object:
+                print(("Object %s re-used") % (obj.id))
+                return code
 
-                used_object.append(obj)
+            used_object.append(obj)
 
-                code +="%s%s" % (indent, obj.GenObjectCode())
-                if len(obj.include_list) > 0:
-                    code+="{\n"
-                    code+=CodeIterate(obj.include_list, used_object, (("%s\t") % (indent)))
-                    code+="%s}" % indent
-                code+="\n"
+            code +="%s%s" % (indent, obj.GenObjectCode())
+            if len(obj.include_list) > 0:
+                code+="{\n"
+                for include_obj in obj.include_list:
+                    code+=CodeIterate(include_obj, used_object, (("%s\t") % (indent)))
+                code+="%s}" % indent
+            code+="\n"
             return code
 
         def GenConnetionCode(main_obj, objects_list = None):
@@ -159,8 +159,7 @@ class Object():
             code += "left to right direction\n"
 
         used_object = []
-        used_object.append(self)
-        code+=CodeIterate(self.include_list, used_object)
+        code+=CodeIterate(self, used_object)
         code+="\n"
 
         for obj in used_object:
