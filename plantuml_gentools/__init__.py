@@ -32,6 +32,9 @@ class Object():
             include_in.Include(self)
 
     def Include(self, include_objs):
+        """ Include objects inside the object
+        :param include_objs Objects
+        """
         if type(include_objs) == list:
             for obj in include_objs:
                 if obj.included is not None:
@@ -44,8 +47,10 @@ class Object():
             self.include_list.append(include_objs)
             include_objs.included = self
 
-    def Connect(self, connect_objs, color="", style="-", dir=1, lengh=0, l_conn="<", r_conn=">", invert=False, hidden = False):
-
+    def Connect(self, connect_objs, color="", style="-", dir=1, lengh=0, l_conn="<", r_conn=">", invert=False, hidden = False, label=""):
+        """ Make connectio nbetween the object and the object list.
+        :param 
+        """
         while dir > 3:
             dir -= 4
 
@@ -75,11 +80,97 @@ class Object():
         
         if type(connect_objs) == list:
             for obj in connect_objs:
-                self.connection_list.append([obj, connector, color, invert])
+                self.connection_list.append([self, obj, connector, color, invert, label])
         else:
-            self.connection_list.append([connect_objs, connector, color, invert])
+            self.connection_list.append([self, connect_objs, connector, color, invert, label])
+
+    def ConnectPair(self, object_list1, object_list2, color="", style="-", dir=1, lengh=0, l_conn="<", r_conn=">", invert=False, hidden = False, label=""):
+        """ Include connection between external objects. 
+        This connections will be included when the owner object is been included in the diagram.
+        """
+        while dir > 3:
+            dir -= 4
+
+        if dir <= 0:
+            dir_code="right"
+        elif dir == 1:
+            dir_code="down"
+        elif dir == 2:
+            dir_code="left"
+            #dir_code="right"
+            #invert = not invert
+        elif dir == 3:
+            dir_code="up"
+            #dir_code="down"
+            #invert = not invert
+
+        sep="-"
+        for i in range(0,lengh):
+            sep+="-"
+
+
+        if hidden:
+            connector = "-[hidden]%s%s" % (dir_code, sep)
+        else:
+            connector="%s-%s%s%s" % (l_conn, dir_code, sep, r_conn)
+            connector=connector.replace("-", style)
+
+
+        obj_list1 = []
+        if type(object_list1) == list:
+            obj_list1 = object_list1
+        else:
+            obj_list1.append(object_list1)
+
+        obj_list2 = []
+        if type(object_list2) == list:
+            obj_list2 = object_list2
+        else:
+            obj_list2.append(object_list2)
+
+        for obj1 in obj_list1:
+            for obj2 in obj_list2:
+                self.connection_list.append([obj1, obj2, connector, color, invert, label])
+
+    def GenConnectionPair(self, objects_list, color="", style="-", dir=1, lengh=0, l_conn="<", r_conn=">", invert=False, hidden = False, label=""):
+        """ Generate connections between external objects.
+        It could be circular conections o one to each other connection.
+        This connections will be included when the owner object is been included in the diagram.
+        """
+        while dir > 3:
+            dir -= 4
+
+        if dir <= 0:
+            dir_code="right"
+        elif dir == 1:
+            dir_code="down"
+        elif dir == 2:
+            dir_code="left"
+            #dir_code="right"
+            #invert = not invert
+        elif dir == 3:
+            dir_code="up"
+            #dir_code="down"
+            #invert = not invert
+
+        sep="-"
+        for i in range(0,lengh):
+            sep+="-"
+
+
+        if hidden:
+            connector = "-[hidden]%s%s" % (dir_code, sep)
+        else:
+            connector="%s-%s%s%s" % (l_conn, dir_code, sep, r_conn)
+            connector=connector.replace("-", style)
+
+        for i in range(0,len(objects_list)-1):
+            self.connection_list.append([objects_list[i], objects_list[i+1], connector, color, invert, label])
 
     def GenObjectCode(self):
+        """
+        :param 
+        """
         code_line = ""
 
         top_margin=""
@@ -116,6 +207,9 @@ class Object():
         return code_line
 
     def GenContainerCode(self):
+        """
+        :param 
+        """
         def CodeIterate(obj, used_object, indent=""):
             code = ""
             if obj in used_object:
@@ -135,17 +229,22 @@ class Object():
 
         def GenConnetionCode(main_obj, objects_list = None):
             code = ""
-            for obj, connector, color, invert in main_obj.connection_list:
+            for obj1, obj2, connector, color, invert, label in main_obj.connection_list:
                 if color != "":
                     if not color.startswith("#"):
                         color = ("#%s") %(color)
                 if objects_list is not None:
-                    if not obj in objects_list:
+                    if not obj1 in objects_list:
                         continue
+                    if not obj2 in objects_list:
+                        continue
+                if label != "":
+                    label = " : %s" % label
+
                 if not invert:
-                    code += (("%s %s %s %s\n") % (main_obj.id, connector, obj.id, color))
+                    code += (("%s %s %s %s %s\n") % (obj1.id, connector, obj2.id, color, label))
                 else:
-                    code += (("%s %s %s %s\n") % (obj.id, connector, main_obj.id, color))
+                    code += (("%s %s %s %s %s\n") % (obj.id, connector, main_obj.id, color, label))
             return code
 
         code=""
@@ -190,6 +289,9 @@ class Object():
         return code
 
     def GenContainerURL(self, format="png", print_URL=False, print_code=False):
+        """
+        :param 
+        """
         code = self.GenContainerCode()
 
         url = "http://www.plantuml.com/plantuml/" + format + "/" + plantuml.deflate_and_encode(code)
@@ -206,6 +308,9 @@ class Object():
         return url
 
     def SaveContainerPlantUML(self, file_name="out"):
+        """
+        :param 
+        """
         f = open(("%s.puml" % (file_name)), 'w+')
         f.write(self.GenContainerCode())
         f.close()
